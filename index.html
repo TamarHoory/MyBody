@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="מעקב הרכב גוף, היקפים ובריאות מטבולית — כלי מקצועי ומאובטח למעקב אישי">
+  <meta name="theme-color" content="#2D7D9A">
+  <title>MyBody — ניתוח הרכב גוף והיקפים</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- Chart.js Zoom Plugin & Hammer.js for touch gestures -->
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  
+  <!-- Firebase SDKs (Compat format) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  
+  <link rel="stylesheet" href="css/style.css?v=18">
+</head>
+<body>
+
+  <!-- ================================================================ -->
+  <!-- LOGIN OVERLAY                                                     -->
+  <!-- ================================================================ -->
+  <div id="login-overlay" class="onboarding-overlay hidden">
+    <div class="onboarding-card" style="text-align: center; padding: 40px 24px;">
+      <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+      <h2>התחברות ל-MyBody</h2>
+      <p style="color: var(--color-text-muted); margin-bottom: 32px;">הנתונים שלך מסונכרנים לענן בצורה מאובטחת ומגובים תמיד.</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
+        <button class="btn-primary" onclick="StorageService.loginWithGoogle(event)" style="display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; font-size: 18px; padding: 16px; background: var(--color-primary); margin-bottom: 12px;">
+          <svg width="24" height="24" viewBox="0 0 48 48" style="background: white; border-radius: 50%; padding: 2px;">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+          </svg>
+          התחברות לחשבון
+        </button>
+
+        <p style="font-size: 14px; color: var(--color-text-muted); text-align: center; margin-top: 8px;">
+          משתמשת חדשה? <a href="#" onclick="StorageService.loginWithGoogle(event)" style="color: var(--color-primary); text-decoration: underline; cursor: pointer;">הרשמי כאן</a>
+        </p>
+      </div>
+      <div id="login-error" class="modal-error" style="margin-top: 16px;"></div>
+
+      <!-- Migration Helpers -->
+      <div style="margin-top: 32px; font-size: 12px; color: var(--color-text-muted); display: flex; justify-content: center; gap: 16px;">
+        <a href="#" onclick="StorageService.downloadBackup(); return false;" style="color: inherit; text-decoration: underline;">ייצוא נתונים לקובץ (גיבוי)</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- ONBOARDING OVERLAY                                                -->
+  <!-- ================================================================ -->
+  <div id="onboarding-overlay" class="onboarding-overlay">
+    <div class="onboarding-card">
+
+      <div class="onboarding-progress">
+        <div class="progress-track">
+          <div class="progress-fill" id="onboarding-progress-fill"></div>
+        </div>
+        <span class="progress-label" id="onboarding-step-label">שלב 1 מתוך 4</span>
+      </div>
+
+      <!-- Step 1: Gender -->
+      <div class="onboarding-step" id="step-1">
+        <div class="step-icon">👤</div>
+        <h2>ברוכה הבאה ל-MyBody!</h2>
+        <p class="step-subtitle">נתחיל בהגדרת הפרופיל שלך — זה ייקח פחות מדקה</p>
+        <div class="gender-selector">
+          <button class="gender-btn" data-gender="female" id="btn-female">
+            <span class="gender-icon">♀</span>
+            <span>נקבה</span>
+          </button>
+          <button class="gender-btn" data-gender="male" id="btn-male">
+            <span class="gender-icon">♂</span>
+            <span>זכר</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Age & Height -->
+      <div class="onboarding-step hidden" id="step-2">
+        <div class="step-icon">📏</div>
+        <h2>נתונים בסיסיים</h2>
+        <p class="step-subtitle">נשמשים לחישוב BMR ואחוז שומן מדויק</p>
+        <div class="form-group">
+          <label for="ob-birthdate">תאריך לידה</label>
+          <input type="date" id="ob-birthdate" autocomplete="bday">
+        </div>
+        <div class="form-group">
+          <label for="ob-height">גובה (ס"מ)</label>
+          <input type="text" id="ob-height" placeholder="לדוגמה: 165" inputmode="decimal" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Step 3: Initial Measurements -->
+      <div class="onboarding-step hidden" id="step-3">
+        <div class="step-icon">📐</div>
+        <h2>מדידות ראשוניות</h2>
+        <p class="step-subtitle">משקל בק"ג, כל שאר הערכים בסנטימטרים</p>
+        <div class="measurements-grid">
+          <div class="form-group">
+            <label for="ob-weight">⚖️ משקל (ק"ג)</label>
+            <input type="text" id="ob-weight" placeholder="72.5" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-neck">🔵 צוואר (ס"מ)</label>
+            <input type="text" id="ob-neck" placeholder="33" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-chest">🔵 חזה (ס"מ)</label>
+            <input type="text" id="ob-chest" placeholder="95" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-waist">🔵 מותניים (ס"מ)</label>
+            <input type="text" id="ob-waist" placeholder="82" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-hips">🔵 אגן (ס"מ)</label>
+            <input type="text" id="ob-hips" placeholder="104" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-thigh">🔵 ירך (ס"מ)</label>
+            <input type="text" id="ob-thigh" placeholder="60" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-arm">🔵 זרוע (ס"מ)</label>
+            <input type="text" id="ob-arm" placeholder="31" inputmode="decimal" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="ob-calf">🔵 שוק (ס"מ)</label>
+            <input type="text" id="ob-calf" placeholder="37" inputmode="decimal" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Confirmation Summary -->
+      <div class="onboarding-step hidden" id="step-4">
+        <div class="step-icon">✅</div>
+        <h2>הכל נראה טוב!</h2>
+        <p class="step-subtitle">סיכום הפרופיל לפני השמירה</p>
+        <div id="onboarding-summary" class="summary-list"></div>
+      </div>
+
+      <div class="onboarding-nav">
+        <button class="btn-secondary" id="ob-back-btn" onclick="Onboarding.prevStep()">חזרה</button>
+        <button class="btn-primary" id="ob-next-btn" onclick="Onboarding.nextStep()">המשך</button>
+      </div>
+      <div class="onboarding-error" id="onboarding-error"></div>
+
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- MAIN APPLICATION                                                  -->
+  <!-- ================================================================ -->
+  <div id="app" class="hidden">
+
+    <!-- STICKY HEADER -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="header-right">
+          <h1 class="app-title">ניתוח הרכב גוף והיקפים</h1>
+          <p class="app-subtitle" id="profile-subtitle"></p>
+        </div>
+        <div class="header-left">
+          <button class="icon-btn" id="profile-settings-btn" onclick="ProfileModal.open()" title="פרופיל אישי" aria-label="עריכת פרופיל">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </button>
+          <button class="icon-btn" id="export-btn" onclick="AppController.exportCSV()" title="ייצוא ל-Excel / CSV" aria-label="ייצוא נתונים">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+          <button class="btn-nutrition" id="nutrition-btn" onclick="NutritionModal.open()">
+            🍏 מחשבון תזונה ותחזית
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+
+      <!-- MEASUREMENTS TABLE SECTION -->
+      <section class="section table-section">
+        <div class="section-header">
+          <h2 class="section-title">היסטוריית מדידות</h2>
+          <button class="btn-add" id="add-entry-btn" onclick="EntryModal.open()">+ הוסף מדידה</button>
+        </div>
+        <div class="table-wrapper" id="table-wrapper">
+          <table class="measurements-table" id="measurements-table">
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th>משקל</th>
+                <th>צוואר</th>
+                <th>חזה</th>
+                <th>מותניים</th>
+                <th>אגן</th>
+                <th>ירך</th>
+                <th>זרוע</th>
+                <th>שוק</th>
+                <th>% שומן</th>
+                <th>מסה רזה</th>
+                <th>פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="measurements-tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state hidden" id="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>אין מדידות עדיין</p>
+          <span>לחצי על "+ הוסף מדידה" להתחלה</span>
+        </div>
+      </section>
+
+      <!-- KPI BLOCKS (right → left: חזה | מותניים | אגן | ירך) -->
+      <section class="section kpi-section hidden" id="kpi-section">
+        <h2 class="section-title">📌 שינויים מול מדידה קודמת</h2>
+        <div class="kpi-grid" id="kpi-grid"></div>
+      </section>
+
+      <!-- SMART INSIGHTS PANEL -->
+      <section class="section insights-section hidden" id="insights-section">
+        <h2 class="section-title">💡 תובנות חכמות</h2>
+        <div class="insights-list" id="insights-list"></div>
+      </section>
+
+      <!-- ANALYTICS CHARTS (Carousel) -->
+      <section class="section charts-section hidden" id="charts-section">
+        <h2 class="section-title">📊 מגמות והתקדמות</h2>
+
+        <div class="chart-carousel-wrapper">
+          <div class="chart-carousel" id="chart-carousel" onscroll="updateCarouselDots()">
+            
+            <!-- Panel: Body Fat -->
+            <div class="carousel-item">
+              <div class="carousel-item-header">אחוזי שומן מחושבים (US Navy)</div>
+              <div class="chart-container">
+                <canvas id="chart-bf"></canvas>
+              </div>
+            </div>
+
+            <!-- Panel: Lean Mass & Weight -->
+            <div class="carousel-item">
+              <div class="carousel-item-header">מסת שומן מול שריר (ק"ג)</div>
+              <div class="chart-container">
+                <canvas id="chart-mass"></canvas>
+              </div>
+            </div>
+
+            <!-- Panel: Monthly Delta -->
+            <div class="carousel-item">
+              <div class="carousel-item-header">קצב שינוי חודשי (ק"ג)</div>
+              <div class="chart-container">
+                <canvas id="chart-delta"></canvas>
+              </div>
+            </div>
+
+            <!-- Panel: Circumferences -->
+            <div class="carousel-item">
+              <div class="carousel-item-header">נפח כללי (סך היקפים בס"מ)</div>
+              <div class="chart-container">
+                <canvas id="chart-volume"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Dots Indicator -->
+          <div class="carousel-dots" id="carousel-dots">
+            <span class="dot active"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+        </div>
+      </section>
+
+      <div style="text-align: center; padding: 20px 0; font-size: 11px; color: var(--color-text-tertiary); font-weight: 500;">
+        v1.0.6
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- ADD / EDIT ENTRY MODAL                                            -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="entry-modal-overlay" onclick="EntryModal.closeOnBackdrop(event)">
+    <div class="modal-card" id="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
+      <div class="modal-header">
+        <h2 id="entry-modal-title">הוספת מדידה חדשה</h2>
+        <button class="modal-close" onclick="EntryModal.close()" aria-label="סגירה">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="entry-date">תאריך</label>
+          <input type="date" id="entry-date">
+        </div>
+        <div class="measurements-grid">
+          <div class="form-group">
+            <label for="entry-weight">⚖️ משקל (ק"ג)</label>
+            <input type="text" id="entry-weight" inputmode="decimal" placeholder="72.5" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-neck">צוואר (ס"מ)</label>
+            <input type="text" id="entry-neck" inputmode="decimal" placeholder="33" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-chest">חזה (ס"מ)</label>
+            <input type="text" id="entry-chest" inputmode="decimal" placeholder="95" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-waist">מותניים (ס"מ)</label>
+            <input type="text" id="entry-waist" inputmode="decimal" placeholder="82" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-hips">אגן (ס"מ)</label>
+            <input type="text" id="entry-hips" inputmode="decimal" placeholder="104" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-thigh">ירך (ס"מ)</label>
+            <input type="text" id="entry-thigh" inputmode="decimal" placeholder="60" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-arm">זרוע (ס"מ)</label>
+            <input type="text" id="entry-arm" inputmode="decimal" placeholder="31" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="entry-calf">שוק (ס"מ)</label>
+            <input type="text" id="entry-calf" inputmode="decimal" placeholder="37" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-error" id="entry-modal-error"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="EntryModal.close()">ביטול</button>
+        <button class="btn-primary" onclick="EntryModal.save()">שמור מדידה</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- NUTRITION & FORECAST MODAL                                        -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="nutrition-modal-overlay" onclick="NutritionModal.closeOnBackdrop(event)">
+    <div class="modal-card nutrition-modal" id="nutrition-modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>🍏 מחשבון תזונה ותחזית</h2>
+        <button class="modal-close" onclick="NutritionModal.close()" aria-label="סגירה">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Profile summary card -->
+        <div class="nutrition-profile-card" id="nutrition-profile-summary"></div>
+
+        <!-- Activity level dropdown -->
+        <div class="form-group">
+          <label for="activity-select">1. בחרי את רמת הפעילות השבועית שלך:</label>
+          <select id="activity-select" onchange="NutritionModal.update()">
+            <option value="1.15">🪑 יושבנית — עבודת משרד, פחות מ-5,000 צעדים ביום</option>
+            <option value="1.3">🚶 פעילות קלה — 1-3 אימונים קלים בשבוע, כ-7,000 צעדים</option>
+            <option value="1.45" selected>🏃 פעילות מתונה — 3-5 אימונים בשבוע, כ-10,000 צעדים</option>
+            <option value="1.6">💪 פעילות גבוהה — 6-7 אימונים אינטנסיביים, מעל 12,000 צעד</option>
+            <option value="1.75">🔥 ספורטאית — אימונים כפולים ביום או עבודה פיזית מאומצת</option>
+          </select>
+        </div>
+
+        <!-- Live TDEE output -->
+        <div class="tdee-display" id="tdee-display">
+          🔥 TDEE (הוצאה יומית): <strong id="tdee-value">—</strong> קלוריות
+        </div>
+
+        <!-- Calorie slider -->
+        <div class="form-group slider-group">
+          <label for="calorie-slider">2. תכנני צריכה קלורית יומית:</label>
+          <div class="slider-wrapper" style="direction: ltr;">
+            <input type="range" id="calorie-slider" min="1200" max="2500" step="100" value="1700" oninput="NutritionModal.update()">
+            <div class="slider-ticks" id="slider-ticks"></div>
+          </div>
+          <div class="slider-value-display">
+            <span id="calorie-slider-value">1700</span> קלוריות
+          </div>
+        </div>
+
+        <!-- Live forecast panel -->
+        <div class="forecast-panel" id="forecast-panel">
+          <div class="forecast-row" id="forecast-balance">—</div>
+          <div class="forecast-row" id="forecast-prediction">—</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- DELETE CONFIRMATION DIALOG                                        -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="confirm-overlay">
+    <div class="modal-card confirm-card" role="alertdialog">
+      <div class="confirm-icon">🗑️</div>
+      <h3>מחיקת מדידה</h3>
+      <p>האם את בטוחה שברצונך למחוק מדידה זו?<br>פעולה זו אינה הפיכה.</p>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="AppController.cancelDelete()">ביטול</button>
+        <button class="btn-danger" onclick="AppController.confirmDelete()">כן, מחקי</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- PROFILE EDIT MODAL                                                -->
+  <!-- ================================================================ -->
+  <div class="modal-overlay hidden" id="profile-modal-overlay" onclick="ProfileModal.closeOnBackdrop(event)">
+    <div class="modal-card profile-modal" id="profile-modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <h2>👤 פרופיל אישי</h2>
+        <button class="modal-close" onclick="ProfileModal.close()" aria-label="סגירה">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Derived stats display (read-only) -->
+        <div class="profile-stats-card" id="profile-derived-stats"></div>
+
+        <div class="profile-divider">עריכת פרטים</div>
+
+        <!-- Gender -->
+        <div class="form-group">
+          <label>מגדר</label>
+          <div class="gender-selector" style="margin-top:8px">
+            <button class="gender-btn" data-pgender="female" id="profile-btn-female"
+                    onclick="ProfileModal.selectGender('female')">
+              <span class="gender-icon">♀</span><span>נקבה</span>
+            </button>
+            <button class="gender-btn" data-pgender="male" id="profile-btn-male"
+                    onclick="ProfileModal.selectGender('male')">
+              <span class="gender-icon">♂</span><span>זכר</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Age & Height -->
+        <div class="measurements-grid" style="grid-template-columns:1fr 1fr">
+          <div class="form-group">
+            <label for="profile-birthdate">תאריך לידה</label>
+            <input type="date" id="profile-birthdate" autocomplete="bday">
+          </div>
+          <div class="form-group">
+            <label for="profile-height">גובה (ס"מ)</label>
+            <input type="text" id="profile-height" inputmode="decimal" placeholder="165" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Activity Level (added) -->
+        <div class="form-group" style="margin-top: 16px;">
+          <label for="profile-activity">רמת פעילות גופנית שגרתית:</label>
+          <select id="profile-activity" class="profile-select">
+            <option value="1.15">🪑 יושבנית — עבודת משרד, פחות מ-5,000 צעדים ביום</option>
+            <option value="1.3">🚶 פעילות קלה — 1-3 אימונים קלים בשבוע</option>
+            <option value="1.45" selected>🏃 פעילות מתונה — 3-5 אימונים בשבוע</option>
+            <option value="1.6">💪 פעילות גבוהה — 6-7 אימונים אינטנסיביים בשבוע</option>
+            <option value="1.75">🔥 ספורטאית — אימונים כפולים או עבודה מאומצת</option>
+          </select>
+          <p style="font-size: 10px; color: var(--color-text-muted); margin-top: 4px; line-height: 1.4;">
+            רמה זו תוגדר כברירת המחדל לחישובי TDEE (הוצאה קלורית יומית) במחשבון התזונה.
+          </p>
+        </div>
+
+        <div class="modal-error" id="profile-modal-error"></div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn-secondary" onclick="StorageService.logout()" style="color: var(--color-danger); border-color: var(--color-danger);">התנתק/י מהחשבון</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" onclick="ProfileModal.close()">ביטול</button>
+          <button class="btn-primary" onclick="ProfileModal.save()">שמור שינויים</button>
+        </div>
+        
+        <!-- Restore Backup option -->
+        <div style="margin-top: 24px; text-align: center;">
+          <p style="font-size: 14px; color: var(--color-text-muted); margin-bottom: 8px;">יש לך קובץ גיבוי ישן?</p>
+          <button class="btn-secondary" onclick="document.getElementById('backup-upload').click()" style="font-size: 14px;">טעינת נתונים מגיבוי</button>
+          <input type="file" id="backup-upload" accept=".json" style="display: none;" onchange="StorageService.restoreBackup(event)">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- SCRIPTS — Order is important (dependencies first)                 -->
+  <!-- ================================================================ -->
+  <script src="js/storage.js?v=19"></script>
+  <script src="js/formulas.js?v=19"></script>
+  <script src="js/onboarding.js?v=19"></script>
+  <script src="js/entry_modal.js?v=19"></script>
+  <script src="js/table.js?v=19"></script>
+  <script src="js/kpi.js?v=19"></script>
+  <script src="js/insights.js?v=19"></script>
+  <script src="js/charts.js?v=19"></script>
+  <script src="js/nutrition.js?v=19"></script>
+  <script src="js/profile_modal.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
+
+</body>
+</html>
