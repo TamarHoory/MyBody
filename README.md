@@ -9,7 +9,7 @@ A modern, mobile-first Web Application designed for precise tracking of body mea
 
 מערכת חכמה לניהול ומעקב אחר הרכב גוף, היקפים ותזונה. האפליקציה מחשבת נתונים פיזיולוגיים מתקדמים (מסה רזה מול מסת שומן), מציגה דשבורד אנליטי, ומפיקה תובנות מדעיות אוטומטיות לגבי איכות הירידה במשקל.
 
-## ✨ Key Features (יכולות מרכזיות)
+## ✨ Key Features
 
 * **☁️ Cloud Sync & Secure Authentication:** 
   Seamless and secure login using Google Authentication. Each user gets a personalized, isolated profile. All biometric data, measurements, and history are securely saved in a cloud database, allowing users to access their dashboard synchronized across multiple devices.
@@ -26,14 +26,14 @@ A modern, mobile-first Web Application designed for precise tracking of body mea
 * **🌐 Mobile-First & RTL Support:** 
   Clean, responsive UI meticulously designed for mobile screens with strict Right-to-Left (RTL) alignment for the Hebrew language.
 
-## 🛠️ Tech Stack (טכנולוגיות)
+## 🛠️ Tech Stack 
 
 * **Frontend:** HTML5, CSS3, JavaScript (ES6+).
 * **Styling:** Tailwind CSS (or custom modern CSS).
 * **Data Visualization:** Chart.js.
 * **Backend & Auth:** Google Authentication (OAuth) and Cloud Database (Firebase).
 
-## 🚀 Getting Started (איך להתחיל)
+## 🚀 Getting Started 
 
 ### 🌐 Use the Live Web App
 You can use the deployed application directly here: **[Open App](https://mybody-app-62f94.web.app/)** (Sign in with your Google account).
